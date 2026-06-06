@@ -79,6 +79,24 @@ def detect(rows: list[dict]) -> list[dict]:
         [r["Address"] for r in idx200 if 0 < _int(r.get("Title 1 Length")) < 30],
         "Titles under 30 characters.")
     
+    # --- Meta Descriptions ---
+    add("missing_meta_description", "Medium",
+        [r["Address"] for r in idx200 if not (r.get("Meta Description 1", "") or "").strip()],
+        "Indexable pages missing a meta description.")
+
+    # duplicate meta descriptions (indexable only)
+    by_meta = defaultdict(list)
+    for r in idx200:
+        m = (r.get("Meta Description 1", "") or "").strip()
+        if m:
+            by_meta[m].append(r["Address"])
+    dup_m = [u for urls in by_meta.values() if len(urls) > 1 for u in urls]
+    add("duplicate_meta_description", "Medium", dup_m, "Pages sharing an identical meta description.")
+
+    add("meta_description_too_long", "Low",
+        [r["Address"] for r in idx200 if _int(r.get("Meta Description 1 Length")) > 155],
+        "Meta descriptions exceeding 155 characters.")
+    
     # --- Response codes ---
     add("broken_link", "High",
         [r["Address"] for r in rows if 400 <= _int(r.get("Status Code")) <= 499],
