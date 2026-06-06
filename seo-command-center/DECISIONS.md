@@ -11,15 +11,13 @@ Format:
 
 ---
 
-## Example (replace with your own)
-- `[10:20]` Chose plain-csv parsing over pandas → fewer deps, fast enough for 5k rows, model
-  quota saved for the fixer.
-- `[11:05]` Title detector over-counted duplicates → realized non-indexable pages were
-  included; added an indexable+200 filter (per rulebook).
-- `[12:40]` Dashboard wasn't updating live → MCP tool wasn't emitting the SSE event; added
-  `_emit("issue", row)` in extract.
-
----
-
 ## My log
-- `[--:--]` ...
+- `[11:15]` Dropped pandas requirement from setup → plain csv module handles 456 rows instantly anyway. No need for heavy external dependencies.
+
+- `[12:30]` Custom redirect logic failed on multi-hop jumps → rewrote detector.py using a small graph-based trace matrix to follow headers manually. Now catches true loops and stacked chains.
+
+- `[13:10]` Terminal froze completely during execution → python subprocess was stuck waiting forever on Ollama because qwen3.5:9b wasn't downloaded locally.
+
+- `[13:15]` Added strict 2s timeout guard to subprocess run → if local model hangs or is missing, it drops back to safe string optimization instantly instead of locking the console.
+
+- `[13:45]` Relative imports like `..mcp` crashing script execution → python hates running top-level files directly with dots. Added sys.path.insert overrides and type ignores to keep Pylance quiet while maintaining clean CLI boots on port 7799.

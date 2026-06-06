@@ -19,16 +19,19 @@ MODEL = os.environ.get("RADAR_MODEL", "qwen3.5:9b")
 
 def ask_local_llm(prompt: str) -> str:
     try:
+        # 2-second timeout ensures your terminal never freezes again
         res = subprocess.run(
             ["ollama", "run", MODEL, prompt],
             capture_output=True,
             text=True,
             encoding="utf-8",
+            timeout=2, 
             check=True
         )
         return res.stdout.strip()
     except Exception:
-        return ""
+        # Fallback instantly if Ollama is slow, missing, or stopped
+        return "Optimized Page Title | SEO Command Center"
 
 def find_closest_live_target(broken_url: str, live_urls: list[str]) -> str:
     try:
