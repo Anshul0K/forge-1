@@ -97,6 +97,53 @@ def detect(rows: list[dict]) -> list[dict]:
         [r["Address"] for r in idx200 if _int(r.get("Meta Description 1 Length")) > 155],
         "Meta descriptions exceeding 155 characters.")
     
+    # --- H1 Headers ---
+    all_200_html = [r for r in html if is_200(r)]
+    
+    add("missing_h1", "Medium",
+        [r["Address"] for r in all_200_html if not (r.get("H1-1", "") or "").strip()],
+        "HTML pages missing an H1 tag.")
+
+    # Multiple or duplicate H1s across pages
+    by_h1 = defaultdict(list)
+    for r in all_200_html:
+        h1_text = (r.get("H1-1", "") or "").strip()
+        if h1_text:
+            by_h1[h1_text].append(r["Address"])
+            
+    dup_h1_urls = [u for urls in by_h1.values() if len(urls) > 1 for u in urls]
+    add("multiple_duplicate_h1", "Low", dup_h1_urls, 
+        "Pages with multiple H1 tags or sharing an identical H1 text string across the site.")
+    
+
+    # --- Redirect Chains and Loops ---
+    # Build a lookup map of all redirecting URLs and their destinations
+    redirect_map = {
+        r["Address"]: r["Redirect URL"] 
+        for r in rows 
+        if (r.get("Redirect URL", "") or "").strip() and 300 <= _int(r.get("Status Code")) <= 399
+    }
+    
+    chain_loop_urls = []
+    for start_url in redirect_map:
+        visited = set()
+        curr = start_url
+        steps = 0
+        
+        while curr in redirect_map:
+            if curr in visited:
+                chain_loop_urls.append(start_url)  # Loop found
+                break
+            visited.add(curr)
+            curr = redirect_map[curr]
+            steps += 1
+            if steps > 1:
+                chain_loop_urls.append(start_url)  # Chain found (>1 hop)
+                break
+                
+    add("redirect_chain_loop", "High", chain_loop_urls, 
+        "Redirect configurations resulting in multi-hop chains or infinite loops.")
+    
     # --- Response codes ---
     add("broken_link", "High",
         [r["Address"] for r in rows if 400 <= _int(r.get("Status Code")) <= 499],
