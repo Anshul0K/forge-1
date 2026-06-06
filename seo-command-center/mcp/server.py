@@ -24,6 +24,7 @@ MODEL = os.environ.get("RADAR_MODEL", "qwen3.5:9b")
 import sys
 sys.path.insert(0, ROOT)
 from seo import detector  # noqa: E402
+import agents.ingest as ingest # noqa: E402
 
 RUN = {"site": None, "urls": 0, "issues": [], "summary": None, "status": "idle"}
 _subs: list[queue.Queue] = []
@@ -40,7 +41,7 @@ def _emit(event, data):
 
 # ----- pipeline tools (importable by run.py without MCP) -----
 def seo_load(export_dir: str) -> dict:
-    rows = detector.load_rows(export_dir)
+    rows, count = ingest.ingest_screaming_frog(export_dir)
     RUN.update({"rows": rows, "urls": len(rows), "issues": [], "summary": None,
                 "site": _guess_site(rows), "status": "running"})
     _emit("loaded", {"site": RUN["site"], "urls": len(rows)})

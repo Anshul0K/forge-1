@@ -106,14 +106,14 @@ def detect(rows: list[dict]) -> list[dict]:
 
     # Multiple or duplicate H1s across pages
     by_h1 = defaultdict(list)
-    for r in all_200_html:
+    for r in idx200:
         h1_text = (r.get("H1-1", "") or "").strip()
         if h1_text:
             by_h1[h1_text].append(r["Address"])
-            
+
     dup_h1_urls = [u for urls in by_h1.values() if len(urls) > 1 for u in urls]
-    add("multiple_duplicate_h1", "Low", dup_h1_urls, 
-        "Pages with multiple H1 tags or sharing an identical H1 text string across the site.")
+    add("duplicate_h1", "Low", dup_h1_urls,
+        "Pages sharing an identical H1 text string across the site.")
     
 
     # --- Redirect Chains and Loops ---
@@ -141,8 +141,24 @@ def detect(rows: list[dict]) -> list[dict]:
                 chain_loop_urls.append(start_url)  # Chain found (>1 hop)
                 break
                 
-    add("redirect_chain_loop", "High", chain_loop_urls, 
+    add("redirect_chain", "High", chain_loop_urls,
         "Redirect configurations resulting in multi-hop chains or infinite loops.")
+    
+
+    # --- Thin Content (Low) ---
+    add("thin_content", "Low",
+        [r["Address"] for r in idx200 if _int(r.get("Word Count")) < 200],
+        "Indexable pages with a body word count lower than 200 words.")
+
+    # --- Non-Indexable But Linked (Medium) ---
+    add("non_indexable_but_linked", "Medium",
+        [r["Address"] for r in rows if (r.get("Indexability", "").strip().lower() == "non-indexable") and _int(r.get("Inlinks")) > 0],
+        "Pages explicitly marked non-indexable that still receive incoming site links.")
+
+    # --- Slow Page (Low) ---
+    add("slow_page", "Low",
+        [r["Address"] for r in rows if _float(r.get("Response Time")) > 1.0],
+        "Pages requiring more than 1.0 seconds to fully respond.")
     
     # --- Response codes ---
     add("broken_link", "High",
@@ -173,11 +189,18 @@ def detect(rows: list[dict]) -> list[dict]:
 
 def summarize(issues: list[dict]) -> dict:
     by_sev = defaultdict(int)
+    total_issues_count = 0
     for i in issues:
-        by_sev[i["severity"]] += 1
-    return {"total_issues": len(issues),
-            "by_severity": {"High": by_sev["High"], "Medium": by_sev["Medium"], "Low": by_sev["Low"]}}
-
+        by_sev[i["severity"]] += i["count"]
+        total_issues_count += i["count"]
+    return {
+        "total_issues": total_issues_count,
+        "by_severity": {
+            "High": by_sev["High"], 
+            "Medium": by_sev["Medium"], 
+            "Low": by_sev["Low"]
+        }
+    }
 
 if __name__ == "__main__":
     import sys, json
